@@ -2,14 +2,16 @@
 
 Command line time management in rust!
 
+## Features
+
 - Track habits
 - Track tasks
 - Organize with goals
 - Time block with a calendar
 
-## Featuers
+## Usage
 
-### Tasks list
+### Syntax
 
 Use your favorite editor to schedule tasks
 
@@ -30,4 +32,15 @@ Use your favorite editor to schedule tasks
 # goal 2
 
 ...
+```
+
+## Setup
+
+Put the required keys in `.destined` file in the location of executable
+
+```
+todo_file=destined-todos.md
+history_file=destined-history.md
+undo_file=.destined-undo.md
+editor=nvim
 ```
