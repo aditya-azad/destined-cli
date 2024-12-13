@@ -2,6 +2,7 @@ use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 
 use crate::errors;
 
+#[derive(Debug)]
 pub struct Task {
     body: String,
     goal: Option<String>,
@@ -16,21 +17,28 @@ impl Task {
     // - should start with alpha numeric
     pub fn from_string(task_string: &str) -> Result<Task, errors::StringParseError> {
         let mut t = Task::new();
-        let s = task_string.trim_start_matches(char::is_alphanumeric);
+        let s = task_string.trim().trim_start_matches(char::is_alphanumeric);
         for word in s.split(" ") {
             if word.starts_with("_") {
-                if let Ok(ts) = Task::parse_date_time(word.trim_start_matches("_due")) {
-                    // parse due
-                    t.due = Some(ts);
-                } else if let Ok(ts) = Task::parse_date_time(word) {
+                if let Ok(ts) = Task::parse_date_time(word) {
                     // parse timestamp
                     t.timestamp = Some(ts);
+                } else if let Ok(ts) = Task::parse_date_time(word.trim().trim_start_matches("_due")) {
+                    // parse due
+                    t.due = Some(ts);
                 } else if let Ok(rp) = Task::parse_repeat(word) {
                     // parse repeat
                     t.repeat = Some(rp);
+                } else {
+                    return Err(errors::StringParseError::new(format!(
+                        "Error parsing keyword '{}'",
+                        word
+                    )));
                 }
             } else {
-                t.body = t.body + " " + word;
+                if word != "-" {
+                    t.body = t.body + " " + word;
+                }
             }
         }
         // parse body
@@ -67,7 +75,7 @@ impl Task {
     // - returns the value in lower case if matches
     fn parse_repeat(repeat_string: &str) -> Result<char, errors::StringParseError> {
         let repeat_string = repeat_string.to_lowercase();
-        let repeat_string = repeat_string.trim_start_matches("_r");
+        let repeat_string = repeat_string.trim().trim_start_matches("_r");
         if repeat_string.is_empty() {
             return Err(errors::StringParseError::new(
                 "Repeat body must be 'D', 'W', 'M' or 'Y'".to_string(),
@@ -84,28 +92,20 @@ impl Task {
     // parses string into local DateTime. Supports following formats
     // _12jan2020
     // _12jan2020_10:23pm
-    // _12jan2020_10am
-    // _10am
     // _10:30am
     fn parse_date_time(
         date_time_string: &str,
     ) -> Result<chrono::DateTime<Local>, errors::StringParseError> {
-        let cleaned_input = date_time_string.trim_start_matches('_');
+        let cleaned_input = date_time_string.trim().trim_start_matches('_').to_lowercase();
         let parse_result = if cleaned_input.contains(':') {
             // Format: _12jan2020_10:23pm or _10:30am
-            NaiveDateTime::parse_from_str(cleaned_input, "%d%b%Y_%I:%M%P").or_else(|_| {
-                NaiveTime::parse_from_str(cleaned_input, "%I:%M%P")
-                    .map(|t| Local::now().date_naive().and_time(t))
-            })
-        } else if cleaned_input.ends_with("am") || cleaned_input.ends_with("pm") {
-            // Format: _12jan2020_10am or _10am
-            NaiveDateTime::parse_from_str(cleaned_input, "%d%b%Y_%I%P").or_else(|_| {
-                NaiveTime::parse_from_str(cleaned_input, "%I%P")
+            NaiveDateTime::parse_from_str(&cleaned_input, "%d%b%Y_%I:%M%P").or_else(|_| {
+                NaiveTime::parse_from_str(&cleaned_input, "%I:%M%P")
                     .map(|t| Local::now().date_naive().and_time(t))
             })
         } else {
             // Format: _12jan2020
-            NaiveDate::parse_from_str(cleaned_input, "%d%b%Y")
+            NaiveDate::parse_from_str(&cleaned_input, "%d%b%Y")
                 .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
         };
         match parse_result {
