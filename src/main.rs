@@ -72,7 +72,7 @@ fn read_parse_todo_file(todo_file_path: &str) -> Result<Vec<task::Task>, errors:
             let mut task = task::Task::from_string(line).map_err(|e| {
                 errors::FileParseError::new(format!(
                     "Cannot parse todo on line {}: {}",
-                    line_num + 1,
+                    line_num,
                     e.message
                 ))
             })?;
@@ -106,10 +106,11 @@ fn main() {
     for (k, v) in &config {
         println!("\t{}    =>    {}", k, v);
     }
-    println!("==========");
 
     // TODO: create todo and history files if not exist
 
+    println!("==========");
+    println!("todos:");
     // parse todo
     let todos = match read_parse_todo_file(&config["todo_file"]) {
         Ok(t) => t,
@@ -118,4 +119,5 @@ fn main() {
             exit(1);
         }
     };
+    println!("{:#?}", todos);
 }
