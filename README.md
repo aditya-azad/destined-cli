@@ -36,7 +36,7 @@ Use your favorite editor to schedule tasks
 
 ## Setup
 
-Put the required keys in `.destined` file in the location of executable
+Put the required keys in `.destined` file in the location of executable. This is the default configuration:
 
 ```
 todo_file=destined-todos.md

@@ -89,10 +89,11 @@ fn read_parse_todo_file(todo_file_path: &str) -> Result<Vec<task::Task>, errors:
 
 fn main() {
     // parse config
+    // TODO: convert available to defaults using hashmap
     let config = match read_parse_config_file(
         ".destined",
         HashSet::from(["todo_file", "history_file", "editor"]),
-        HashSet::from([]),
+        HashSet::from(["undo_file"]),
     ) {
         Ok(s) => s,
         Err(e) => {
@@ -106,6 +107,8 @@ fn main() {
         println!("\t{}    =>    {}", k, v);
     }
     println!("==========");
+
+    // TODO: create todo and history files if not exist
 
     // parse todo
     let todos = match read_parse_todo_file(&config["todo_file"]) {
