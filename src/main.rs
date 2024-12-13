@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::process::exit;
@@ -23,10 +24,11 @@ where
 // - value is case sensitive
 // - config must contain 'required_keys'
 // - config can only contain 'available_keys' or 'required_keys'
+// - default keys are added if not configured
 fn read_parse_config_file(
     config_file_path: &str,
     required_keys: HashSet<&str>,
-    available_keys: HashSet<&str>,
+    available_keys: HashMap<&str, &str>,
 ) -> Result<HashMap<String, String>, errors::FileParseError> {
     let mut config = HashMap::new();
     // read, parse and sanitize the lines in file
@@ -52,8 +54,14 @@ fn read_parse_config_file(
     }
     // remove unnecessary fields
     config.retain(|key, _| {
-        available_keys.contains(key.as_str()) || required_keys.contains(key.as_str())
+        available_keys.contains_key(key.as_str()) || required_keys.contains(key.as_str())
     });
+    // put defaults
+    for (key, val) in available_keys {
+        if !config.contains_key(key) {
+            config.insert(key.to_string(), val.to_string());
+        }
+    }
     Ok(config)
 }
 
@@ -72,8 +80,7 @@ fn read_parse_todo_file(todo_file_path: &str) -> Result<Vec<task::Task>, errors:
             let mut task = task::Task::from_string(line).map_err(|e| {
                 errors::FileParseError::new(format!(
                     "Cannot parse todo on line {}: {}",
-                    line_num,
-                    e.message
+                    line_num, e.message
                 ))
             })?;
             if !current_goal.is_empty() {
@@ -89,11 +96,10 @@ fn read_parse_todo_file(todo_file_path: &str) -> Result<Vec<task::Task>, errors:
 
 fn main() {
     // parse config
-    // TODO: convert available to defaults using hashmap
     let config = match read_parse_config_file(
         ".destined",
         HashSet::from(["todo_file", "history_file", "editor"]),
-        HashSet::from(["undo_file"]),
+        HashMap::from([("undo_dir", ".destined-undo")]),
     ) {
         Ok(s) => s,
         Err(e) => {
@@ -107,10 +113,16 @@ fn main() {
         println!("\t{}    =>    {}", k, v);
     }
 
-    // TODO: create todo and history files if not exist
+    // create todo and history files if not exist
+    let _ = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&config["todo_file"]);
+    let _ = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&config["history_file"]);
 
-    println!("==========");
-    println!("todos:");
     // parse todo
     let todos = match read_parse_todo_file(&config["todo_file"]) {
         Ok(t) => t,
@@ -119,5 +131,7 @@ fn main() {
             exit(1);
         }
     };
+    println!("==========");
+    println!("todos:");
     println!("{:#?}", todos);
 }

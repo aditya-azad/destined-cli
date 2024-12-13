@@ -41,6 +41,6 @@ Put the required keys in `.destined` file in the location of executable. This is
 ```
 todo_file=destined-todos.md
 history_file=destined-history.md
-undo_file=.destined-undo.md
+undo_dir=.destined-undo
 editor=nvim
 ```
