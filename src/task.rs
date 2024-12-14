@@ -1,7 +1,8 @@
 use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 
-use crate::errors;
+use crate::errors::ParsingError;
 
+// TODO: add duration
 #[derive(Debug)]
 pub struct Task {
     body: String,
@@ -15,7 +16,7 @@ impl Task {
     // parses the string to task object with following rules:
     // - can start with '-' but is trimmed off
     // - should start with alpha numeric
-    pub fn from_string(task_string: &str) -> Result<Task, errors::StringParseError> {
+    pub fn from_string(task_string: &str) -> Result<Task, ParsingError> {
         let mut t = Task::new();
         let s = task_string.trim().trim_start_matches(char::is_alphanumeric);
         for word in s.split(" ") {
@@ -23,14 +24,15 @@ impl Task {
                 if let Ok(ts) = Task::parse_date_time(word) {
                     // parse timestamp
                     t.timestamp = Some(ts);
-                } else if let Ok(ts) = Task::parse_date_time(word.trim().trim_start_matches("_due")) {
+                } else if let Ok(ts) = Task::parse_date_time(word.trim().trim_start_matches("_due"))
+                {
                     // parse due
                     t.due = Some(ts);
                 } else if let Ok(rp) = Task::parse_repeat(word) {
                     // parse repeat
                     t.repeat = Some(rp);
                 } else {
-                    return Err(errors::StringParseError::new(format!(
+                    return Err(ParsingError::String(format!(
                         "Error parsing keyword '{}'",
                         word
                     )));
@@ -43,7 +45,7 @@ impl Task {
         }
         // parse body
         if t.body.len() == 0 {
-            return Err(errors::StringParseError::new(
+            return Err(ParsingError::String(
                 "Task body should not be empty".to_string(),
             ));
         }
@@ -73,17 +75,17 @@ impl Task {
     // - _RD or _RW or _RM or _RY
     // - case insensitive
     // - returns the value in lower case if matches
-    fn parse_repeat(repeat_string: &str) -> Result<char, errors::StringParseError> {
+    fn parse_repeat(repeat_string: &str) -> Result<char, ParsingError> {
         let repeat_string = repeat_string.to_lowercase();
         let repeat_string = repeat_string.trim().trim_start_matches("_r");
         if repeat_string.is_empty() {
-            return Err(errors::StringParseError::new(
+            return Err(ParsingError::String(
                 "Repeat body must be 'D', 'W', 'M' or 'Y'".to_string(),
             ));
         } else if ["d", "w", "m", "y"].contains(&repeat_string) {
             return Ok(repeat_string.chars().next().unwrap());
         } else {
-            return Err(errors::StringParseError::new(
+            return Err(ParsingError::String(
                 "Repeat body must be 'D', 'W', 'M' or 'Y'".to_string(),
             ));
         }
@@ -93,10 +95,11 @@ impl Task {
     // _12jan2020
     // _12jan2020_10:23pm
     // _10:30am
-    fn parse_date_time(
-        date_time_string: &str,
-    ) -> Result<chrono::DateTime<Local>, errors::StringParseError> {
-        let cleaned_input = date_time_string.trim().trim_start_matches('_').to_lowercase();
+    fn parse_date_time(date_time_string: &str) -> Result<chrono::DateTime<Local>, ParsingError> {
+        let cleaned_input = date_time_string
+            .trim()
+            .trim_start_matches('_')
+            .to_lowercase();
         let parse_result = if cleaned_input.contains(':') {
             // Format: _12jan2020_10:23pm or _10:30am
             NaiveDateTime::parse_from_str(&cleaned_input, "%d%b%Y_%I:%M%P").or_else(|_| {
@@ -110,7 +113,7 @@ impl Task {
         };
         match parse_result {
             Ok(d) => Ok(Local.from_local_datetime(&d).unwrap()),
-            Err(e) => Err(errors::StringParseError::new(format!(
+            Err(e) => Err(ParsingError::String(format!(
                 "Error parsing string '{}' to date time: {}",
                 date_time_string, e
             ))),

@@ -29,16 +29,16 @@ fn read_parse_config_file(
     config_file_path: &str,
     required_keys: HashSet<&str>,
     available_keys: HashMap<&str, &str>,
-) -> Result<HashMap<String, String>, errors::FileParseError> {
+) -> Result<HashMap<String, String>, errors::ParsingError> {
     let mut config = HashMap::new();
     // read, parse and sanitize the lines in file
     let lines = read_lines(config_file_path)
-        .map_err(|_| errors::FileParseError::new("Could not read config file".to_string()))?;
+        .map_err(|_| errors::ParsingError::File("Could not read config file".to_string()))?;
     // fill config map
     for (line_num, line) in lines.flatten().enumerate().map(|(i, v)| (i + 1, v)) {
         let words: Vec<&str> = line.split("=").collect();
         if words.len() != 2 {
-            return Err(errors::FileParseError::new(
+            return Err(errors::ParsingError::File(
                 format!("Check config file syntax on line {}: '{}'", line_num, line).to_string(),
             ));
         }
@@ -47,7 +47,7 @@ fn read_parse_config_file(
     // check for required fields
     for key in required_keys.iter() {
         if !config.contains_key(*key) {
-            return Err(errors::FileParseError::new(
+            return Err(errors::ParsingError::File(
                 format!("Config file must contain the key '{}'", key).to_string(),
             ));
         }
@@ -69,18 +69,18 @@ fn read_parse_config_file(
 // - white spaces are ignored
 // - # tells that the following tasks are associated with the goal
 // - - tells that the line is a task
-fn read_parse_todo_file(todo_file_path: &str) -> Result<Vec<task::Task>, errors::FileParseError> {
+fn read_parse_todo_file(todo_file_path: &str) -> Result<Vec<task::Task>, errors::ParsingError> {
     let mut tasks: Vec<task::Task> = vec![];
     let lines = read_lines(todo_file_path)
-        .map_err(|_| errors::FileParseError::new("Could not read todo file".to_string()))?;
+        .map_err(|_| errors::ParsingError::File("Could not read todo file".to_string()))?;
     let mut current_goal = String::from("");
     for (line_num, line) in lines.flatten().enumerate().map(|(i, v)| (i + 1, v)) {
         let line = line.trim();
         if line.starts_with("-") {
             let mut task = task::Task::from_string(line).map_err(|e| {
-                errors::FileParseError::new(format!(
+                errors::ParsingError::File(format!(
                     "Cannot parse todo on line {}: {}",
-                    line_num, e.message
+                    line_num, e
                 ))
             })?;
             if !current_goal.is_empty() {
