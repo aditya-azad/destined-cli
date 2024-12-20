@@ -105,7 +105,7 @@ impl Task {
     // - _T
     fn parse_tracking(tracking_string: &str) -> Result<bool, ParsingError> {
         let tracking_string = tracking_string.to_lowercase();
-        let tracking_string = tracking_string.trim().trim_start_matches("_r");
+        let tracking_string = tracking_string.trim();
         if tracking_string.starts_with("_t") {
             return Ok(true);
         }
