@@ -28,6 +28,8 @@ Use your favorite editor to schedule tasks
 - other available repeat intervals _RW _RM _RY
 - have due dates as reminders _due_12jan2025
 - can have time too _due_12jan2025_12:11pm
+- habit that repeats daily and have a duration in hours _RD _10:00am _for_2.5h
+- habit that can be tracked in the interval _RD_T _10:00am
 
 # goal 2
 

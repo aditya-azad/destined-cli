@@ -1,14 +1,16 @@
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+use chrono::{Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+use fast_float::parse_partial;
 
 use crate::errors::ParsingError;
 
-// TODO: add duration
 #[derive(Debug)]
 pub struct Task {
     body: String,
     goal: Option<String>,
     due: Option<chrono::DateTime<Local>>,
     timestamp: Option<chrono::DateTime<Local>>,
+    tracking: Option<bool>,
+    duration: Option<Duration>,
     repeat: Option<char>,
 }
 
@@ -31,6 +33,12 @@ impl Task {
                 } else if let Ok(rp) = Task::parse_repeat(word) {
                     // parse repeat
                     t.repeat = Some(rp);
+                } else if let Ok(tr) = Task::parse_tracking(word) {
+                    // parse tracking
+                    t.tracking = Some(tr);
+                } else if let Ok(dur) = Task::parse_duration(word) {
+                    // parse duration
+                    t.duration = Some(dur);
                 } else {
                     return Err(ParsingError::String(format!(
                         "Error parsing keyword '{}'",
@@ -67,6 +75,8 @@ impl Task {
             goal: None,
             due: None,
             timestamp: None,
+            duration: None,
+            tracking: None,
             repeat: None,
         }
     }
@@ -91,7 +101,20 @@ impl Task {
         }
     }
 
-    // parses string into local DateTime. Supports following formats
+    // parses if tracking or not
+    // - _T
+    fn parse_tracking(tracking_string: &str) -> Result<bool, ParsingError> {
+        let tracking_string = tracking_string.to_lowercase();
+        let tracking_string = tracking_string.trim().trim_start_matches("_r");
+        if tracking_string.starts_with("_t") {
+            return Ok(true);
+        }
+        Err(ParsingError::String(
+            "Repeat body must be 'D', 'W', 'M' or 'Y'".to_string(),
+        ))
+    }
+
+    // parses string into local datetime. supports following formats
     // _12jan2020
     // _12jan2020_10:23pm
     // _10:30am
@@ -117,6 +140,62 @@ impl Task {
                 "Error parsing string '{}' to date time: {}",
                 date_time_string, e
             ))),
+        }
+    }
+
+    // parses duration. supports following formats
+    // _for_2h
+    // _for_10m
+    fn parse_duration(duration_string: &str) -> Result<Duration, ParsingError> {
+        let cleaned_input = duration_string.to_lowercase();
+        let cleaned_input = cleaned_input.trim().trim_start_matches("_for");
+        if cleaned_input.is_empty() {
+            return Err(ParsingError::String(format!(
+                "Duration must not be empty: {}",
+                cleaned_input
+            )));
+        }
+        let splits: Vec<&str> = cleaned_input.split('_').collect();
+        if splits.len() != 2 {
+            return Err(ParsingError::String(format!(
+                "Duration must not be empty: {}",
+                cleaned_input
+            )));
+        }
+        let duration_in_units = match parse_partial::<f32, _>(splits[1]) {
+            Ok(p) => p.0,
+            Err(e) => {
+                return Err(ParsingError::String(format!(
+                    "Duration '{}' must have a number: {}",
+                    cleaned_input, e
+                )))
+            }
+        };
+        let duration = match splits[1].chars().last() {
+            Some(c) => match c {
+                'h' => Duration::new((duration_in_units * 3600.0) as i64, 0),
+                'm' => Duration::new((duration_in_units * 60.0) as i64, 0),
+                _ => {
+                    return Err(ParsingError::String(format!(
+                        "Duration '{}' must have a number",
+                        cleaned_input
+                    )))
+                }
+            },
+            None => {
+                return Err(ParsingError::String(format!(
+                    "Duration '{}' must have a unit 'h' or 'm'",
+                    cleaned_input
+                )))
+            }
+        };
+        match duration {
+            Some(d) => Ok(d),
+            None => {
+                return Err(ParsingError::String(
+                    "Duration could not be parsed".to_string(),
+                ))
+            }
         }
     }
 }
